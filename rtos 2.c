@@ -116,16 +116,17 @@ semaphore semaphores[MAX_SEMAPHORES];
 uint8_t taskCurrent = 0;   // index of last dispatched task
 uint8_t taskCount = 0;     // total number of valid tasks
 uint32_t pidCounter = 0;   // incremented on each thread created
-bool scheduler=0;  //1 is priority and 0 is round robin
+bool scheduler=1;  //1 is priority and 0 is round robin
 bool preemption=0;
 bool flag=1;
 USER_DATA data;
 uint32_t Time[2][MAX_TASKS];
 bool ping=0;
-bool pong=0;
+bool pong=1;
 bool temp=0;
-uint32_t intCpu[MAX_TASKS];
-uint32_t floatCpu[MAX_TASKS];
+uint64_t intCpu[MAX_TASKS];
+uint64_t floatCpu[MAX_TASKS];
+uint8_t TASKS_CREATED=0;
 
 
 uint32_t heap[MAX_TASKS*2][256]   __attribute__((location(0x20002000)))     __attribute__((aligned (1024)));
@@ -150,8 +151,8 @@ void parseFields(USER_DATA* data);
 char* getFieldString(USER_DATA* data, uint8_t fieldNumber);
 uint16_t getFieldInteger(USER_DATA* data, uint8_t fieldNumber);
 bool isCommand(USER_DATA* data, const char strCommand[], uint8_t minArguments);
-uint8_t strCompare(char*, const char*);
-char* i_to_a(uint32_t);
+uint8_t strCompare(char*,char*);
+char* i_to_a(uint64_t);
 void getsUart0(USER_DATA*);
 
 struct _tcb
@@ -208,7 +209,7 @@ int rtosScheduler()
         while (!ok)
         {
             task++;
-            if (task >= MAX_TASKS)
+            if (task >= TASKS_CREATED)
                 task = 0;
             ok = (tcb[task].state == STATE_READY || tcb[task].state == STATE_UNRUN);
         }
@@ -220,10 +221,10 @@ int rtosScheduler()
         while(p_level<PRIORITY_MAX_LEVEL && (!ok))
         {
 
-            for(i=0;i<MAX_TASKS;i++)
+            for(i=0;i<TASKS_CREATED;i++)
             {
                 curTask+=1;
-                if(curTask>=MAX_TASKS)
+                if(curTask>=TASKS_CREATED)
                     curTask=0;
                 if(tcb[curTask].priority==p_level)
                 {
@@ -238,7 +239,6 @@ int rtosScheduler()
             p_level++;
             if(p_level>PRIORITY_MAX_LEVEL)
                 p_level=0;
-
         }
 
     }
@@ -306,7 +306,7 @@ void destroyThread(fn task)
 void setThreadPriority(fn task, uint8_t priority)
 {
     uint8_t k=0;
-    while(k<MAX_TASKS)
+    while(k<TASKS_CREATED)
     {
         if(tcb[k].pFn==task)
         {
@@ -333,6 +333,7 @@ void startRtos()
 {
     taskCurrent=rtosScheduler();
     tcb[taskCurrent].state = STATE_READY;
+    TASKS_CREATED=pidCounter;
     setPSP((uint32_t)tcb[taskCurrent].sp);
     activateASP();
     //start sytick timer
@@ -396,7 +397,7 @@ void callrun(char* a)
 void systickIsr()
 {
     uint8_t i;
-    static int counter=1000;
+    static uint16_t counter=1000;
     for(i=0;i<MAX_TASKS;i++)
     {
         if(tcb[i].state == STATE_DELAYED)
@@ -444,8 +445,8 @@ void pendSvIsr()
 {
     pushRegs();
     tcb[taskCurrent].sp=(uint32_t*)getPSP();
-    TIMER1_CTL_R &= ~TIMER_CTL_TAEN;
     Time[temp][taskCurrent]+=TIMER1_TAV_R;
+    TIMER1_CTL_R &= ~TIMER_CTL_TAEN;
     taskCurrent=rtosScheduler();
     setPSP((uint32_t)tcb[taskCurrent].sp);
 
@@ -499,11 +500,11 @@ void svCallIsr()
         NVIC_INT_CTRL_R |=NVIC_INT_CTRL_PEND_SV;
         break;
     case 0x12: //wait
-
+        //just decrement the count and execute the critical section if count>0
         if(semaphores[r_0].count > 0)
         {
             semaphores[r_0].count--;
-            tcb[taskCurrent].s = r_0; //index of the semaphore that is blocking the thread
+            //tcb[taskCurrent].s = r_0; //index of the semaphore that is blocking the thread
         }
         else
         {
@@ -511,9 +512,9 @@ void svCallIsr()
             semaphores[r_0].processQueue[semaphores[r_0].queueSize] = taskCurrent; //add the task to the queue
             tcb[taskCurrent].s = r_0;     //index of the semaphore that is blocking the thread
             semaphores[r_0].queueSize++;
-
+            NVIC_INT_CTRL_R |=NVIC_INT_CTRL_PEND_SV;
         }
-        NVIC_INT_CTRL_R |=NVIC_INT_CTRL_PEND_SV;
+
 
 
         break;
@@ -528,7 +529,7 @@ void svCallIsr()
                 semaphores[r_0].processQueue[i] = semaphores[r_0].processQueue[i+1];
             }
             semaphores[r_0].queueSize--;
-            NVIC_INT_CTRL_R |=NVIC_INT_CTRL_PEND_SV;
+           // NVIC_INT_CTRL_R |=NVIC_INT_CTRL_PEND_SV;
         }
 
         break;
@@ -537,27 +538,27 @@ void svCallIsr()
         break;
     case 0x15: //pidoff
         a=(char*)r_0;
-        while(k<MAX_TASKS)
+        while(k<TASKS_CREATED)
         {
             if(strCompare(a,tcb[k].name))
             {
-                putsUart0("\n\rPID of:");
+                putsUart0("\n\rPID of ");
                 putsUart0(tcb[k].name);
-                putsUart0(" is ");
+                putsUart0(" is: ");
                 putsUart0(i_to_a(tcb[k].pid));
                 putsUart0("\n\r");
                 break;
             }
             k++;
-            if(k==MAX_TASKS)
-            {
-                putsUart0("invalid task name\n\r");
-            }
+        }
+        if(k==TASKS_CREATED)
+        {
+            putsUart0("invalid task name\n\r");
         }
         break;
     case 0x16: //run
         runTask = (char *)r_0;
-        for(i = 0;i < MAX_TASKS;i++)
+        for(i = 0;i < TASKS_CREATED;i++)
         {
             if(strCompare(runTask, tcb[i].name))
             {
@@ -567,6 +568,10 @@ void svCallIsr()
 //                tcb[i].priority = 8;
                 break;
             }
+        }
+        if(i==TASKS_CREATED)
+        {
+            putsUart0("invalid task name\n\r");
         }
         break;
 
@@ -586,7 +591,7 @@ void svCallIsr()
         break;
     case 0x20: //kill the thread
         kill=(fn)r_0;
-        l=0;
+        l=1; //can't kill idle
         while(l<MAX_TASKS)
         {
             if(tcb[l].pFn == kill)
@@ -620,7 +625,7 @@ void svCallIsr()
                 //                    }
                 //                }
                 tcb[l].state = STATE_INVALID;
-                taskCount--;
+                //taskCount--;
                 if(tcb[l].s != 0)
                 {
                     killsemaphore = tcb[l].s;
@@ -629,7 +634,7 @@ void svCallIsr()
                         if(semaphores[killsemaphore].processQueue[j] == i)
                         {
                             semaphores[killsemaphore].processQueue[j] = 0;
-                            for(k = 0;k < semaphores[killsemaphore].queueSize;k++)
+                            for(k = j;k < semaphores[killsemaphore].queueSize;k++)
                             {
                                 semaphores[killsemaphore].processQueue[k] = semaphores[killsemaphore].processQueue[k+1];
                             }
@@ -785,7 +790,7 @@ int number_of_digits(int n)
 }
 
 
-char* i_to_a(uint32_t n)
+char* i_to_a(uint64_t n)
 {
     uint16_t dc = 0;
 
@@ -897,7 +902,7 @@ uint16_t getFieldInteger(USER_DATA* data, uint8_t fieldNumber)
     return 0;
 }
 
-uint8_t strCompare(char* str1, const char* str2)
+uint8_t strCompare(char* str1,char* str2)
 {
     int i=0;
     while(str1[i]!='\0' || str2[i]!='\0')
@@ -1122,7 +1127,7 @@ void shell()
                 parseFields(&data);
                 putsUart0(data.buffer);
                 putsUart0("\n\r");
-                yield();
+                //yield();
                 if(isCommand(&data,"reboot",0))
                 {
                     valid=true;
@@ -1181,7 +1186,7 @@ void shell()
                     uint64_t total=0,totalCpu=0;
                     for(i=0;i<pidCounter;i++)
                     {
-                        total+=Time[temp][i];
+                        total+=Time[!temp][i];
                     }
                     for(i=0;i<pidCounter;i++)
                     {
@@ -1189,17 +1194,19 @@ void shell()
                         intCpu[i]=totalCpu/100;
                         floatCpu[i]=totalCpu%100;
                     }
-                    putsUart0("Name\t\t  Pid\t\t  State\t\t   Cpu Usage\r\n");
+
+                    putsUart0("Pid\t\tName\t\tState\t\tPriority\t\tCpu Usage\r\n");
+                    putsUart0("-------------------------------------------------------------\n\r");
                     for(i=0;i<pidCounter;i++)
                     {
+                        putsUart0(i_to_a(tcb[i].pid));
+                        putcUart0('\t');
                         putsUart0(tcb[i].name);
                         putcUart0('\t');
-                        putsUart0(i_to_a(tcb[i].pid));
-                        putsUart0("\t");
                         if(tcb[i].state == STATE_READY)
-                            putsUart0("STATE READY\t");
+                            putsUart0("STATE_READY  \t");
                         else if(tcb[i].state == STATE_UNRUN)
-                            putsUart0("STATE_UNRUN\t");
+                            putsUart0("STATE_UNRUN  \t");
                         else if(tcb[i].state == STATE_BLOCKED)
                             putsUart0("STATE_BLOCKED\t");
                         else if(tcb[i].state == STATE_DELAYED)
@@ -1207,6 +1214,7 @@ void shell()
                         else if(tcb[i].state == STATE_INVALID)
                             putsUart0("STATE_INVALID\t");
                         putsUart0("\t");
+                        putsUart0(i_to_a(tcb[i].priority));
                         putsUart0("\t");
                         putsUart0(i_to_a(intCpu[i]));
                         putcUart0('.');
@@ -1217,7 +1225,7 @@ void shell()
                 else if(isCommand(&data,"ipcs",0))
                 {
                     valid=true;
-                    putsUart0("Semaphore index \t    Name \t     Semaphore Count\t  Queue Size\t  waiting task\t\t  Running Task\r\n");
+                    putsUart0("Semaphore index\tName\tSemaphore Count\tQueue Size\twaiting task\tRunning Task\r\n");
                     uint8_t i,temp1=0,temp2=0;
                     for(i=1;i<MAX_SEMAPHORES;i++)
                     {
@@ -1242,7 +1250,7 @@ void shell()
                             }
                         }
                         putsUart0("\t\t");
-                        for(temp2=0;temp2<MAX_TASKS;temp2++)
+                        for(temp2=0;temp2<pidCounter;temp2++)
                         {
                             if(tcb[temp2].state==STATE_READY||tcb[temp2].state==STATE_DELAYED)
                             {
@@ -1259,7 +1267,7 @@ void shell()
 
                 if(valid==false)
                 {
-                    putsUart0("invalid command");
+                    putsUart0("invalid command\n\r");
                 }
             }
             yield();
@@ -1297,17 +1305,17 @@ int main(void)
       createSemaphore(resource, 1,"resource");
 
     // Add required idle process at lowest priority
-    ok =  createThread(idle, "Idle", 7, 1024);
+    ok =  createThread(idle, "Idle", 7, 1024);  //0
 
 //    // Add other processes
-    ok &= createThread(lengthyFn, "LengthyFn", 6, 1024);
-    ok &= createThread(flash4Hz, "Flash4Hz", 4, 1024);
-    ok &= createThread(oneshot, "OneShot", 2, 1024);
-    ok &= createThread(readKeys, "ReadKeys", 6, 1024);
-   ok &= createThread(debounce, "Debounce", 6, 1024);
-    ok &= createThread(important, "Important", 0, 1024);
-    ok &= createThread(uncooperative, "Uncoop", 6, 1024);
-    ok &= createThread(shell, "Shell", 6, 4096);
+    ok &= createThread(lengthyFn, "LengthyFn", 6, 1024); //1
+    ok &= createThread(flash4Hz, "Flash4Hz", 4, 1024);//2
+    ok &= createThread(oneshot, "OneShot", 2, 1024);//3
+    ok &= createThread(readKeys, "ReadKeys", 6, 1024);//4
+    ok &= createThread(debounce, "Debounce", 6, 1024);//5
+    ok &= createThread(important, "Important", 0, 1024);//6
+    ok &= createThread(uncooperative, "Uncoop", 6, 1024);//7
+    ok &= createThread(shell, "Shell", 6, 4096);//8
 
     // Start up RTOS
     if (ok)
