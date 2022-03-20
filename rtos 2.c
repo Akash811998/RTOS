@@ -116,11 +116,11 @@ semaphore semaphores[MAX_SEMAPHORES];
 uint8_t taskCurrent = 0;   // index of last dispatched task
 uint8_t taskCount = 0;     // total number of valid tasks
 uint32_t pidCounter = 0;   // incremented on each thread created
-bool scheduler=1;  //1 is priority and 0 is round robin
+bool scheduler=0;  //1 is priority and 0 is round robin
 bool preemption=0;
 bool flag=1;
 USER_DATA data;
-uint32_t Time[2][MAX_TASKS];
+uint64_t Time[2][MAX_TASKS];
 bool ping=0;
 bool pong=1;
 bool temp=0;
@@ -189,17 +189,17 @@ void initRtos()
 // REQUIRED: Implement prioritization to 8 levels
 int rtosScheduler()
 {
-//    bool ok;
-//    static uint8_t task = 0xFF;
-//    ok = false;
-//    while (!ok)
-//    {
-//        task++;
-//        if (task >= MAX_TASKS)
-//            task = 0;
-//        ok = (tcb[task].state == STATE_READY || tcb[task].state == STATE_UNRUN);
-//    }
-//    return task;
+    //    bool ok;
+    //    static uint8_t task = 0xFF;
+    //    ok = false;
+    //    while (!ok)
+    //    {
+    //        task++;
+    //        if (task >= MAX_TASKS)
+    //            task = 0;
+    //        ok = (tcb[task].state == STATE_READY || tcb[task].state == STATE_UNRUN);
+    //    }
+    //    return task;
     bool ok;
     static uint8_t task = 0xFF;
     ok = false;
@@ -529,7 +529,7 @@ void svCallIsr()
                 semaphores[r_0].processQueue[i] = semaphores[r_0].processQueue[i+1];
             }
             semaphores[r_0].queueSize--;
-           // NVIC_INT_CTRL_R |=NVIC_INT_CTRL_PEND_SV;
+            // NVIC_INT_CTRL_R |=NVIC_INT_CTRL_PEND_SV;
         }
 
         break;
@@ -564,8 +564,8 @@ void svCallIsr()
             {
                 tcb[i].state = STATE_UNRUN;
                 tcb[i].sp = tcb[i].spInit;
-//                tcb[i].currentPriority = 8;
-//                tcb[i].priority = 8;
+                //                tcb[i].currentPriority = 8;
+                //                tcb[i].priority = 8;
                 break;
             }
         }
@@ -663,42 +663,42 @@ void svCallIsr()
 void initHw()
 {
     // Initialize system clock to 40 MHz
-       //initSystemClockTo40Mhz();
+    //initSystemClockTo40Mhz();
 
-       // Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 40 MHz
-       SYSCTL_RCC_R = SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN | SYSCTL_RCC_USESYSDIV | (4 << SYSCTL_RCC_SYSDIV_S);
-       // Set GPIO ports to use APB (not needed since default configuration -- for clarity)
-       SYSCTL_GPIOHBCTL_R = 0;
-       _delay_cycles(3);
-       SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R0 | SYSCTL_RCGCGPIO_R2 | SYSCTL_RCGCGPIO_R3|SYSCTL_RCGCGPIO_R4| SYSCTL_RCGCGPIO_R5;
+    // Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 40 MHz
+    SYSCTL_RCC_R = SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN | SYSCTL_RCC_USESYSDIV | (4 << SYSCTL_RCC_SYSDIV_S);
+    // Set GPIO ports to use APB (not needed since default configuration -- for clarity)
+    SYSCTL_GPIOHBCTL_R = 0;
+    _delay_cycles(3);
+    SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R0 | SYSCTL_RCGCGPIO_R2 | SYSCTL_RCGCGPIO_R3|SYSCTL_RCGCGPIO_R4| SYSCTL_RCGCGPIO_R5;
 
-       // Configure LED pin
-       GPIO_PORTA_DIR_R |= RED_LED_MASK|ORANGE_LED_MASK|YELLOW_LED_MASK;  // make LED as outputs
-       GPIO_PORTA_DR2R_R |= RED_LED_MASK|ORANGE_LED_MASK|YELLOW_LED_MASK; // set drive strength to 2mA (not needed since default configuration -- for clarity)
-       GPIO_PORTA_DEN_R |= RED_LED_MASK|ORANGE_LED_MASK|YELLOW_LED_MASK;  // enable LED
-       GPIO_PORTE_DIR_R |= GREEN_LED_MASK;
-       GPIO_PORTE_DR2R_R |= GREEN_LED_MASK;
-       GPIO_PORTE_DEN_R |= GREEN_LED_MASK;
-       GPIO_PORTF_DIR_R |=BLUE_LED_MASK;
-       GPIO_PORTF_DR2R_R |=BLUE_LED_MASK;
-       GPIO_PORTF_DEN_R |=BLUE_LED_MASK;
+    // Configure LED pin
+    GPIO_PORTA_DIR_R |= RED_LED_MASK|ORANGE_LED_MASK|YELLOW_LED_MASK;  // make LED as outputs
+    GPIO_PORTA_DR2R_R |= RED_LED_MASK|ORANGE_LED_MASK|YELLOW_LED_MASK; // set drive strength to 2mA (not needed since default configuration -- for clarity)
+    GPIO_PORTA_DEN_R |= RED_LED_MASK|ORANGE_LED_MASK|YELLOW_LED_MASK;  // enable LED
+    GPIO_PORTE_DIR_R |= GREEN_LED_MASK;
+    GPIO_PORTE_DR2R_R |= GREEN_LED_MASK;
+    GPIO_PORTE_DEN_R |= GREEN_LED_MASK;
+    GPIO_PORTF_DIR_R |=BLUE_LED_MASK;
+    GPIO_PORTF_DR2R_R |=BLUE_LED_MASK;
+    GPIO_PORTF_DEN_R |=BLUE_LED_MASK;
 
-       GPIO_PORTC_DIR_R=0;
-       GPIO_PORTC_DEN_R |= PB0_MASK|PB1_MASK|PB2_MASK|PB3_MASK;  // enable LEDs and pushbuttons
-       GPIO_PORTC_PUR_R |= PB0_MASK|PB1_MASK|PB2_MASK|PB3_MASK; // enable internal pull-up for push button
+    GPIO_PORTC_DIR_R=0;
+    GPIO_PORTC_DEN_R |= PB0_MASK|PB1_MASK|PB2_MASK|PB3_MASK;  // enable LEDs and pushbuttons
+    GPIO_PORTC_PUR_R |= PB0_MASK|PB1_MASK|PB2_MASK|PB3_MASK; // enable internal pull-up for push button
 
-       GPIO_PORTD_LOCK_R = GPIO_LOCK_KEY;
-       GPIO_PORTD_CR_R =128; //PB5_mask
-       GPIO_PORTD_DIR_R=0;
-       GPIO_PORTD_DEN_R |= PB4_MASK|PB5_MASK;  // enable LEDs and pushbuttons
-       GPIO_PORTD_PUR_R |= PB4_MASK|PB5_MASK;
+    GPIO_PORTD_LOCK_R = GPIO_LOCK_KEY;
+    GPIO_PORTD_CR_R =128; //PB5_mask
+    GPIO_PORTD_DIR_R=0;
+    GPIO_PORTD_DEN_R |= PB4_MASK|PB5_MASK;  // enable LEDs and pushbuttons
+    GPIO_PORTD_PUR_R |= PB4_MASK|PB5_MASK;
 
-       SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R1;                                      // Enable Systick timer
-       TIMER1_CTL_R &= ~TIMER_CTL_TAEN;                                                // Disable timer before configuring (safe programming)
-       TIMER1_CFG_R = TIMER_CFG_32_BIT_TIMER;                                          // Configure as 32-bit timer (A+B)
-       TIMER1_TAILR_R = 0xFFFFFFFF;                                                    //max value
-       TIMER1_TAV_R = 0;                                                               //initail value set to 0
-       TIMER1_TAMR_R = TIMER_TAMR_TAMR_PERIOD | TIMER_TAMR_TACDIR;                     // Configure for periodic mode and Count Up timer}
+    SYSCTL_RCGCTIMER_R |= SYSCTL_RCGCTIMER_R1;                                      // Enable Systick timer
+    TIMER1_CTL_R &= ~TIMER_CTL_TAEN;                                                // Disable timer before configuring (safe programming)
+    TIMER1_CFG_R = TIMER_CFG_32_BIT_TIMER;                                          // Configure as 32-bit timer (A+B)
+    TIMER1_TAILR_R = 0xFFFFFFFF;                                                    //max value
+    TIMER1_TAV_R = 0;                                                               //initail value set to 0
+    TIMER1_TAMR_R = TIMER_TAMR_TAMR_PERIOD | TIMER_TAMR_TACDIR;                     // Configure for periodic mode and Count Up timer}
 }
 
 // REQUIRED: add code to return a value from 0-63 indicating which of 6 PBs are pressed
@@ -794,11 +794,11 @@ char* i_to_a(uint64_t n)
 {
     uint16_t dc = 0;
 
-//    if(n < 0)
-//    {
-//        n = -1*n;
-//        dc++;
-//    }
+    //    if(n < 0)
+    //    {
+    //        n = -1*n;
+    //        dc++;
+    //    }
 
     if(n==0)
     {
@@ -882,15 +882,15 @@ uint16_t getFieldInteger(USER_DATA* data, uint8_t fieldNumber)
         {
             while(data->buffer[i]!='\0')
             {
-             i++;
+                i++;
             }
 
-         for(j=i-1;j>=num;j--)
-         {
-             temp=(data->buffer[j])-48;
-             result=result+temp*power(10,inc++);
-         }
-         return result;
+            for(j=i-1;j>=num;j--)
+            {
+                temp=(data->buffer[j])-48;
+                result=result+temp*power(10,inc++);
+            }
+            return result;
         }
         else
         {
@@ -921,35 +921,35 @@ bool isCommand(USER_DATA* data, const char strCommand[], uint8_t minArguments)
     char* str=&(data->buffer[data->fieldPosition[0]]);
     int f=1;
 
-        while(str[i]!='\0' && f!=0)
+    while(str[i]!='\0' && f!=0)
+    {
+        if(str[i]==strCommand[i])
         {
-            if(str[i]==strCommand[i])
-            {
-                i++;
-            }
-            else
-            {
-                f=0;
-                return 0;
-            }
+            i++;
         }
-        if(((data->fieldCount)-1)!=minArguments)
+        else
+        {
+            f=0;
             return 0;
-        return 1;
+        }
+    }
+    if(((data->fieldCount)-1)!=minArguments)
+        return 0;
+    return 1;
 }
 
 void getsUart0(USER_DATA* data)
 {
     unsigned int ct=0;  //count
     char c;
-//    goto entry;
-//    entry:
-//    c[ct++]=getcUart0();
-// if(ct>0 && (c[ct-1]==8 || c[ct-1]==128]))
-//    {
-//      ct--;
-//      goto entry;
-//    }
+    //    goto entry;
+    //    entry:
+    //    c[ct++]=getcUart0();
+    // if(ct>0 && (c[ct-1]==8 || c[ct-1]==128]))
+    //    {
+    //      ct--;
+    //      goto entry;
+    //    }
     while(ct!=MAX_CHARS)
     {
         c=getcUart0();
@@ -1114,166 +1114,170 @@ void important()
 // REQUIRED: add processing for the shell commands through the UART here
 void shell()
 {
+    putsUart0("welcome\n\r");
     while (true)
     {
-        putsUart0("welcome\n\r");
         bool valid=false;
-        while (true)
+        if (kbhitUart0())
         {
-            if (kbhitUart0())
+            getsUart0(&data);
+            putsUart0("\n\r");
+            parseFields(&data);
+            putsUart0(data.buffer);
+            putsUart0("\n\r");
+            //yield();
+            if(isCommand(&data,"reboot",0))
             {
-                getsUart0(&data);
-                putsUart0("\n\r");
-                parseFields(&data);
-                putsUart0(data.buffer);
-                putsUart0("\n\r");
-                //yield();
-                if(isCommand(&data,"reboot",0))
+                valid=true;
+                __asm volatile(" SVC #0x14 ");
+            }
+            else if(isCommand(&data,"kill",1))
+            {
+                valid=true;
+                uint8_t task=getFieldInteger(&data, 1);
+                destroyThread(tcb[task].pFn);
+            }
+            else if(isCommand(&data,"preemption",1))        //Is command argument PREEMPT
+            {
+                if(strCompare(getFieldString(&data,1),"on") == true)
                 {
                     valid=true;
-                    __asm volatile(" SVC #0x14 ");
+                    preemption=true;
                 }
-                else if(isCommand(&data,"kill",1))
+                else if(strCompare(getFieldString(&data,1),"off") == true)
+                {
+                    preemption=false;
+                    valid=true;
+                }
+                else
+                    putsUart0("Please enter valid Input Argument\r\n");
+            }
+            else if(isCommand(&data,"scheduler",1))        //Is command argument PREEMPT
+            {
+                if(strCompare(getFieldString(&data,1),"rr") == true)
                 {
                     valid=true;
-                    fn toBeKilledPid =(fn)getFieldInteger(&data, 1);
-                    destroyThread(toBeKilledPid);
+                    scheduler=false;
                 }
-                else if(isCommand(&data,"preemption",1))        //Is command argument PREEMPT
+                else if(strCompare(getFieldString(&data,1),"prio") == true)
                 {
-                    if(strCompare(getFieldString(&data,1),"on") == true)
-                    {
-                        valid=true;
-                        preemption=true;
-                    }
-                    else if(strCompare(getFieldString(&data,1),"off") == true)
-                    {
-                        preemption=false;
-                        valid=true;
-                    }
-                    else
-                        putsUart0("Please enter valid Input Argument\r\n");
-                }
-                else if(isCommand(&data,"scheduler",1))        //Is command argument PREEMPT
-                {
-                    if(strCompare(getFieldString(&data,1),"RR") == true)
-                    {
-                        valid=true;
-                        scheduler=false;
-                    }
-                    else if(strCompare(getFieldString(&data,1),"PRIO") == true)
-                    {
-                        scheduler=true;
-                        valid=true;
-                    }
-                    else
-                        putsUart0("Please enter valid Input Argument\r\n");
-                }
-                else if(isCommand(&data,"run",1) || isCommand(&data,"restart",1))
-                {
+                    scheduler=true;
                     valid=true;
-                    callrun(getFieldString(&data,1));
                 }
-                else if(isCommand(&data,"pidof",1))  //returns the PID of the task
+                else
+                    putsUart0("Please enter valid Input Argument\r\n");
+            }
+            else if(isCommand(&data,"run",1) || isCommand(&data,"restart",1))
+            {
+                valid=true;
+                callrun(getFieldString(&data,1));
+            }
+            else if(isCommand(&data,"pidof",1))  //returns the PID of the task
+            {
+                valid=true;
+                callpidoff(getFieldString(&data,1));
+            }
+            else if(isCommand(&data,"ps",0))
+            {
+                valid=true;
+                uint8_t i=0;
+                uint64_t total=0,totalCpu=0;
+                for(i=0;i<pidCounter;i++)
                 {
-                    valid=true;
-                    callpidoff(getFieldString(&data,1));
+                    total+=Time[!temp][i];
                 }
-                else if(isCommand(&data,"ps",0))
+                for(i=0;i<pidCounter;i++)
                 {
-                    valid=true;
-                    uint8_t i=0;
-                    uint64_t total=0,totalCpu=0;
-                    for(i=0;i<pidCounter;i++)
-                    {
-                        total+=Time[!temp][i];
-                    }
-                    for(i=0;i<pidCounter;i++)
-                    {
-                        totalCpu=((Time[!temp][i])*10000)/total;
-                        intCpu[i]=totalCpu/100;
-                        floatCpu[i]=totalCpu%100;
-                    }
+                    totalCpu=((Time[!temp][i])*10000)/total;
+                    intCpu[i]=totalCpu/100;
+                    floatCpu[i]=totalCpu%100;
+                }
 
-                    putsUart0("Pid\t\tName\t\tState\t\tPriority\t\tCpu Usage\r\n");
-                    putsUart0("-------------------------------------------------------------\n\r");
-                    for(i=0;i<pidCounter;i++)
-                    {
-                        putsUart0(i_to_a(tcb[i].pid));
+                putsUart0("Pid\tName\t\tState\t\t  Priority\tCpu Usage\r\n");
+                putsUart0("-------------------------------------------------------------\n\r");
+                for(i=0;i<pidCounter;i++)
+                {
+                    putsUart0(i_to_a(tcb[i].pid));
+                    putcUart0('\t');
+                    putsUart0(tcb[i].name);
+                    putcUart0('\t');
+                    if(i==0 || i==3 || i==7 || i==8)
+
                         putcUart0('\t');
-                        putsUart0(tcb[i].name);
-                        putcUart0('\t');
-                        if(tcb[i].state == STATE_READY)
-                            putsUart0("STATE_READY  \t");
-                        else if(tcb[i].state == STATE_UNRUN)
-                            putsUart0("STATE_UNRUN  \t");
-                        else if(tcb[i].state == STATE_BLOCKED)
-                            putsUart0("STATE_BLOCKED\t");
-                        else if(tcb[i].state == STATE_DELAYED)
-                            putsUart0("STATE_DELAYED\t");
-                        else if(tcb[i].state == STATE_INVALID)
-                            putsUart0("STATE_INVALID\t");
-                        putsUart0("\t");
-                        putsUart0(i_to_a(tcb[i].priority));
-                        putsUart0("\t");
-                        putsUart0(i_to_a(intCpu[i]));
-                        putcUart0('.');
-                        putsUart0(i_to_a(floatCpu[i]));
-                        putsUart0("\n\r");
-                    }
-                }
-                else if(isCommand(&data,"ipcs",0))
-                {
-                    valid=true;
-                    putsUart0("Semaphore index\tName\tSemaphore Count\tQueue Size\twaiting task\tRunning Task\r\n");
-                    uint8_t i,temp1=0,temp2=0;
-                    for(i=1;i<MAX_SEMAPHORES;i++)
-                    {
-                        putsUart0(i_to_a(i));
-                        putsUart0("\t\t");
-                        putsUart0(semaphores[i].name);
-                        putsUart0("\t\t");
-
-                        putsUart0(i_to_a(semaphores[i].count));
-                        putsUart0("\t\t");
-                        putsUart0(i_to_a(semaphores[i].queueSize));
-                        putsUart0("\t\t");
-
-                        if(semaphores[i].queueSize==0)
-                            putsUart0("None\t\t");
-                        else
-                        {
-                            for(temp1=0;temp1<semaphores[i].queueSize;temp1++)
-                            {
-                                putsUart0(tcb[semaphores[i].processQueue[temp1]].name);
-                                putsUart0(",");
-                            }
-                        }
-                        putsUart0("\t\t");
-                        for(temp2=0;temp2<pidCounter;temp2++)
-                        {
-                            if(tcb[temp2].state==STATE_READY||tcb[temp2].state==STATE_DELAYED)
-                            {
-                                if(tcb[temp2].s==i)
-                                {
-                                    putsUart0(tcb[temp2].name);
-                                    putcUart0(',');
-                                }
-                            }
-                        }
-                        putsUart0("\n\r");
-                    }
-                }
-
-                if(valid==false)
-                {
-                    putsUart0("invalid command\n\r");
+                    if(tcb[i].state == STATE_READY)
+                        putsUart0("STATE_READY  \t");
+                    else if(tcb[i].state == STATE_UNRUN)
+                        putsUart0("STATE_UNRUN  \t");
+                    else if(tcb[i].state == STATE_BLOCKED)
+                        putsUart0("STATE_BLOCKED\t");
+                    else if(tcb[i].state == STATE_DELAYED)
+                        putsUart0("STATE_DELAYED\t");
+                    else if(tcb[i].state == STATE_INVALID)
+                        putsUart0("STATE_INVALID\t");
+                    putsUart0("\t");
+                    //                        putcUart0('\t');
+                    //                        putcUart0('\t');
+                    putsUart0(i_to_a(tcb[i].priority));
+                    putsUart0("\t");
+                    putsUart0(i_to_a(intCpu[i]));
+                    putcUart0('.');
+                    putsUart0(i_to_a(floatCpu[i]));
+                    putsUart0("\n\r");
                 }
             }
-            yield();
+            else if(isCommand(&data,"ipcs",0))
+            {
+                valid=true;
+                putsUart0("Semaphore");
+                putsUart0("index\tName    \tSemaphore Count\tQueue Size\twaiting task\tRunning Task\r\n");
+                uint8_t i,temp1=0,temp2=0;
+                for(i=1;i<MAX_SEMAPHORES;i++)
+                {
+                    putsUart0(i_to_a(i));
+                    putsUart0("\t\t");
+                    putsUart0(semaphores[i].name);
+                    putsUart0("\t");
+
+                    putsUart0(i_to_a(semaphores[i].count));
+                    putsUart0("\t\t");
+                    putsUart0(i_to_a(semaphores[i].queueSize));
+                    putsUart0("\t\t");
+
+                    if(semaphores[i].queueSize==0)
+                        putsUart0("None\t");
+                    else
+                    {
+                        for(temp1=0;temp1<semaphores[i].queueSize;temp1++)
+                        {
+                            putsUart0(tcb[semaphores[i].processQueue[temp1]].name);
+                            putsUart0(" ");
+                        }
+                    }
+                    putsUart0("\t");
+                    for(temp2=0;temp2<pidCounter;temp2++)
+                    {
+                        if(tcb[temp2].state==STATE_READY||tcb[temp2].state==STATE_DELAYED)
+                        {
+                            if(tcb[temp2].s==i)
+                            {
+                                putsUart0(tcb[temp2].name);
+                                putcUart0(' ');
+                            }
+                        }
+                    }
+                    putsUart0("\n\r");
+                }
+            }
+
+            if(valid==false)
+            {
+                putsUart0("invalid command\n\r");
+            }
         }
+        yield();
     }
 }
+
 
 //-----------------------------------------------------------------------------
 // Main
@@ -1299,23 +1303,23 @@ int main(void)
 
     // Initialize semaphores
     // Initialize semaphores
-      createSemaphore(keyPressed, 1,"keyPressed");
-      createSemaphore(keyReleased, 0,"keyReleased");
-      createSemaphore(flashReq, 5,"flashReq");
-      createSemaphore(resource, 1,"resource");
+    createSemaphore(keyPressed, 1,"keyPressed");
+    createSemaphore(keyReleased, 0,"keyReleased");
+    createSemaphore(flashReq, 5,"flashReq");
+    createSemaphore(resource, 1,"resource");
 
     // Add required idle process at lowest priority
-    ok =  createThread(idle, "Idle", 7, 1024);  //0
+    ok =  createThread(idle, "idle", 7, 1024);  //0
 
-//    // Add other processes
-    ok &= createThread(lengthyFn, "LengthyFn", 6, 1024); //1
-    ok &= createThread(flash4Hz, "Flash4Hz", 4, 1024);//2
-    ok &= createThread(oneshot, "OneShot", 2, 1024);//3
-    ok &= createThread(readKeys, "ReadKeys", 6, 1024);//4
-    ok &= createThread(debounce, "Debounce", 6, 1024);//5
-    ok &= createThread(important, "Important", 0, 1024);//6
-    ok &= createThread(uncooperative, "Uncoop", 6, 1024);//7
-    ok &= createThread(shell, "Shell", 6, 4096);//8
+    //    // Add other processes
+    ok &= createThread(lengthyFn, "lengthyfn", 6, 1024); //1
+    ok &= createThread(flash4Hz, "flash4hz", 4, 1024);//2
+    ok &= createThread(oneshot, "oneshot", 2, 1024);//3
+    ok &= createThread(readKeys, "readkeys", 6, 1024);//4
+    ok &= createThread(debounce, "debounce", 6, 1024);//5
+    ok &= createThread(important, "important", 0, 1024);//6
+    ok &= createThread(uncooperative, "uncoop", 6, 1024);//7
+    ok &= createThread(shell, "shell", 6, 4096);//8
 
     // Start up RTOS
     if (ok)
