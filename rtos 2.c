@@ -602,6 +602,10 @@ void svCallIsr()
                 tcb[l].state = STATE_INVALID;
                 tcb[l].ticks=0;
                 tcb[l].s=0;
+                if(l==1)//turn off lengthyfn led if it is on. when you kill lengthy if red led is on. after killing it it will still be on
+                {
+                    RED_LED=0;
+                }
                 for(i=0;i<MAX_SEMAPHORES;i++)
                 {
                     killsemaphore=&semaphores[i];
@@ -627,6 +631,7 @@ void svCallIsr()
                                     {
                                         killsemaphore->processQueue[k] = 0;
                                         killsemaphore->queueSize--;
+
                                         if(tcb[j].ticks>0)
                                             tcb[j].state=STATE_DELAYED;
                                         else
