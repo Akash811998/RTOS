@@ -2,7 +2,7 @@
 // No memory protection, no privilege enforcement
 // J Losh
 
-// Student Name:
+// Student Name: AKASH VIRENDRA
 // TO DO: Add your name on this line.  Do not include your ID number in the file.
 
 // Please do not change any function name in this code or the thread priorities
@@ -482,12 +482,12 @@ void svCallIsr()
 {
     uint8_t svc=getSvcnumber();
     uint32_t r_0=getR0fromPSP();
-    uint8_t i=0,j=0,k=0,l=0;
+    uint8_t i=0,j=0,k=0,l=0,t=0;
     fn kill;
     fn restartTask;
     char *runTask=0;
     char *a=0;
-    uint8_t killsemaphore;
+    semaphore *killsemaphore;
 
     switch(svc)
     {
@@ -596,62 +596,116 @@ void svCallIsr()
         {
             if(tcb[l].pFn == kill)
             {
-                //                if(strCompare(tcb[l].name,"Idle"))
-                //                {
-                //                    putsUart0("\n\rcan't kill idle process\n\r");
-                //                    break;
-                //                }
-                //                else
-                //                {
-                //                    if(tcb[l].state==STATE_BLOCKED)
-                //                    {
-                //                        killsemaphore=tcb[l].s;
-                //                        for(j = 0;j<semaphores[killsemaphore].queueSize; j++)
-                //                        {
-                //                            if(semaphores[killsemaphore].processQueue[j] == l)
-                //                            {
-                //                                semaphores[killsemaphore].processQueue[j] = 0;
-                //                                for(k = 0;k < semaphores[killsemaphore].queueSize;k++)
-                //                                {
-                //                                    semaphores[killsemaphore].processQueue[k] = semaphores[killsemaphore].processQueue[k+1];
-                //                                }
-                //                                semaphores[killsemaphore].queueSize--;
-                //                            }
-                //
-                //                        }
-                //
-                //                        tcb[l].state =STATE_INVALID ;
-                //                        break;
-                //                    }
-                //                }
-                tcb[l].state = STATE_INVALID;
                 //taskCount--;
-                if(tcb[l].s != 0)
+                //if(tcb[l].s != 0)
+                // {
+                tcb[l].state = STATE_INVALID;
+                tcb[l].ticks=0;
+                tcb[l].s=0;
+                for(i=0;i<MAX_SEMAPHORES;i++)
                 {
-                    killsemaphore = tcb[l].s;
-                    for(j = 0;j < semaphores[killsemaphore].queueSize; j++)
+                    killsemaphore=&semaphores[i];
+                    for(k=0;k<killsemaphore->queueSize;k++)
                     {
-                        if(semaphores[killsemaphore].processQueue[j] == i)
+                        if(killsemaphore->processQueue[k]==tcb[l].pid)
                         {
-                            semaphores[killsemaphore].processQueue[j] = 0;
-                            for(k = j;k < semaphores[killsemaphore].queueSize;k++)
+                            killsemaphore->processQueue[k] = 0;
+                            for(t=k;t<(killsemaphore->queueSize);t++)
                             {
-                                semaphores[killsemaphore].processQueue[k] = semaphores[killsemaphore].processQueue[k+1];
+                                killsemaphore->processQueue[t] = killsemaphore->processQueue[t+1];
                             }
-                            semaphores[killsemaphore].queueSize--;
+                            killsemaphore->queueSize--;
                         }
-                        break;
+                        else if(killsemaphore==&semaphores[4])  //if a process lengthyfn or important was killed as they share the same semaphore which is resource
+                        {
+                            if (strCompare(tcb[l].name,"lengthyfn") || strCompare(tcb[l].name,"important"))
+                            {
+                                uint32_t one_or_six=killsemaphore->processQueue[k];
+                                for(j=0;j<TASKS_CREATED;j++)
+                                {
+                                    if(tcb[j].pid==one_or_six)
+                                    {
+                                        killsemaphore->processQueue[k] = 0;
+                                        killsemaphore->queueSize--;
+                                        if(tcb[j].ticks>0)
+                                            tcb[j].state=STATE_DELAYED;
+                                        else
+                                            tcb[j].state=STATE_READY;
+                                    }
+                                }
+                            }
+                        }
                     }
+
                 }
                 break;
             }
             l++;
         }
-        break;
     }
 }
+//                killsemaphore = tcb[l].s;
+//                if(tcb[l].state==STATE_BLOCKED)
+//                {
+//                    for(j = 0;j < semaphores[killsemaphore].queueSize; j++)
+//                    {
+//                        if(semaphores[killsemaphore].processQueue[j] == killsemaphore)
+//                        {
+//                            semaphores[killsemaphore].processQueue[j] = 0;
+//                            for(k = j;k < semaphores[killsemaphore].queueSize;k++)
+//                                semaphores[killsemaphore].processQueue[k] = semaphores[killsemaphore].processQueue[k+1];
+//                            semaphores[killsemaphore].queueSize--;
+//                            tcb[l].state = STATE_INVALID;
+//                            tcb[l].ticks=0;
+//                            tcb[l].s=0;
+//                            break;
+//                        }
+//
+//                    }
+//                }
+//                tcb[l].state = STATE_INVALID;
+//                tcb[l].s=0;
+//                tcb[l].ticks=0;
+//                break;
+//            }
+//            l++;
+//        }
+//        break;
+//    }
+//}
 
 
+
+
+
+//                if(strCompare(tcb[l].name,"Idle"))
+               //                {
+               //                    putsUart0("\n\rcan't kill idle process\n\r");
+               //                    break;
+               //                }
+               //                else
+               //                {
+               //                    if(tcb[l].state==STATE_BLOCKED)
+               //                    {
+               //                        killsemaphore=tcb[l].s;
+               //                        for(j = 0;j<semaphores[killsemaphore].queueSize; j++)
+               //                        {
+               //                            if(semaphores[killsemaphore].processQueue[j] == l)
+               //                            {
+               //                                semaphores[killsemaphore].processQueue[j] = 0;
+               //                                for(k = 0;k < semaphores[killsemaphore].queueSize;k++)
+               //                                {
+               //                                    semaphores[killsemaphore].processQueue[k] = semaphores[killsemaphore].processQueue[k+1];
+               //                                }
+               //                                semaphores[killsemaphore].queueSize--;
+               //                            }
+               //
+               //                        }
+               //
+               //                        tcb[l].state =STATE_INVALID ;
+               //                        break;
+               //                    }
+               //                }
 
 //-----------------------------------------------------------------------------
 // Subroutines
